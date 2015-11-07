@@ -49,12 +49,12 @@ def find_forehead_without_eyes(x, y, w, h):
     fy = y + h * 0.11741682974559686
     return map(lambda x: int(x), (fx, fy, fw, fh))
 
-def get_forehead(mt_face):
-    if mt_face[1][2] == 0:
-        a = mt_face[0]
+def get_forehead(prev_face):
+    if prev_face[1][2] == 0:
+        a = prev_face[0]
         return find_forehead_without_eyes(*a)
     else:
-        a = mt_face[0] + mt_face[1]
+        a = prev_face[0] + prev_face[1]
         return find_forehead_with_eyes(*a)
 
 def get_current_faces(candidates, prev_face, tries):
@@ -117,20 +117,12 @@ class ImageHandler(tornado.web.RequestHandler):
     def post(self):
         # if there's a face (or was in the last two seconds): send the coordinates of the image (x, y, h, w)
         # otherwise send '_
-        global mt_prev_face
-        global mt_serialized
         img = convert_to_cv2_img(self.request.body) # return previous face coordinates
         find_faces(img, self.prev_face, self.tries)
-        
-        for i in range(2):
-            curr_mt = mt_prev_face[i]
-            curr_pf = self.prev_face[i]
-            for j in range(4):
-                curr_mt[j] = int(curr_pf[j])
-        mt_serialized = serialize_face_pos(mt_prev_face[0])
 
-        if mt_prev_face[0][2] != 0: # if we have a prev face
-            response_loc = mt_serialized
+        if prev_face[0][2] != 0: # if we have a prev face
+            serialized = serialize_face_pos(prev_face[0])
+            response_loc = serialized
         else: # if we don't have a previous face
             response_loc = '_' # return that we don't have a face
             
