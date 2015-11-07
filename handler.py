@@ -145,9 +145,7 @@ class ImageHandler(tornado.web.RequestHandler):
                 curr_pf = self.prev_face[i]
                 for j in range(4):
                     curr_mt[j] = int(curr_pf[j])
-
             mt_serialized = serialize_face_pos(mt_prev_face[0])
-            print mt_serialized
             dispatch_proc(img, self.prev_face, self.tries) # dispatch new process
 
         if mt_prev_face[0][2] != 0: # if we have a prev face
