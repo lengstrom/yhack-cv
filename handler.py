@@ -6,15 +6,7 @@ import tornado.web
 from tornado.options import define, options
 import multiprocessing as mp
 
-face_cascade = cv2.CascadeClassifier('/usr/local/Cellar/opencv/2.4.12/share/OpenCV/haarcascades/haarcascade_frontalface_default.xml')
-#eye_cascade = cv2.CascadeClassifier('/usr/local/Cellar/opencv/2.4.12/share/OpenCV/haarcascades/haarcascade_eye.xml')
-MAX_NUM_TRIES = 15
-MAX_DIST_BETWEEN_FACES = 2000
-mt_serialized = '_'
-#prev_face = (0, 0, 0, 0)
-mt_prev_face = [[0, 0, 0, 0], [0, 0, 0, 0]] #face, forehead
-proc = mp.Process()
-proc.start()
+
 
 def convert_to_cv2_img(body): 
     file_bytes = np.asarray(bytearray(body), dtype=np.uint8)
@@ -152,10 +144,19 @@ class ImageHandler(tornado.web.RequestHandler):
             response_loc = mt_serialized
         else: # if we don't have a previous face
             response_loc = '_' # return that we don't have a face
-
+            
         self.write(response_loc)
 
 if __name__ == "__main__":
+    face_cascade = cv2.CascadeClassifier('/usr/local/Cellar/opencv/2.4.12/share/OpenCV/haarcascades/haarcascade_frontalface_default.xml')
+    #eye_cascade = cv2.CascadeClassifier('/usr/local/Cellar/opencv/2.4.12/share/OpenCV/haarcascades/haarcascade_eye.xml')
+    MAX_NUM_TRIES = 15
+    MAX_DIST_BETWEEN_FACES = 2000
+    mt_serialized = '_'
+    #prev_face = (0, 0, 0, 0)
+    mt_prev_face = [[0, 0, 0, 0], [0, 0, 0, 0]] #face, forehead
+    proc = mp.Process()
+    proc.start()
     fin = ((ctypes.c_int*4) * 2)()
     tries = mp.Array(ctypes.c_int, 1)
     forehead = []
