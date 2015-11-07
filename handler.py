@@ -37,7 +37,10 @@ def ret_candidate(c, prev_face, tries):
 
 def dispatch_proc(img, prev_face, tries):
     global proc
-    proc = mp.Process(target=find_faces, args=(img,prev_face,tries))
+    def tmp_fn():
+        find_faces(img, prev_face, tries)
+
+    proc = mp.Process(target=tmp_fn)
     # proc = Process(target=sleep10)
     proc.start()
 

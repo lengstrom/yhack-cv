@@ -119,6 +119,7 @@ class ImageHandler(tornado.web.RequestHandler):
         self.prev_face = prev_face # face, forehead
         self.tries = tries
         self.forehead = forehead
+
     def get(self):
         self.render("index.html")
 
