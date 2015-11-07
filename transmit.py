@@ -1,6 +1,4 @@
-import socket
+import requests
 
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server_address = ('localhost', 6000)
-
-
+r = requests.post("http://127.0.0.1:5000/", data={'img': 12524})
+print(r.status_code, r.text)
