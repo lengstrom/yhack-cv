@@ -1,10 +1,9 @@
-import pdb, time, cv2, ctypes, os, platform
+import pdb, time, cv2, os, platform
 import tornado.httpserver
 import tornado.ioloop
 import numpy as np
 import tornado.web
 from tornado.options import define, options
-import multiprocessing as mp
 
 def convert_to_cv2_img(body): 
     file_bytes = np.asarray(bytearray(body), dtype=np.uint8)
@@ -16,8 +15,7 @@ def dist_between_faces(f1, f2):
 def ret_no_face(prev_face, tries):
     tries[0] += 1
     if tries[0] > MAX_NUM_TRIES:
-        with prev_face.get_lock():
-            prev_face[0] = (ctypes.c_int*4)()
+        prev_face[0] = [0,0,0,0]
         return ()
     if prev_face[0][3] == 0:
         return ()
@@ -31,18 +29,8 @@ def serialize_face_pos(tup):
 def ret_candidate(c, prev_face, tries):
     tries[0] = 0
     arr1 = prev_face[0]
-    with prev_face.get_lock():
-        prev_face[0] = (ctypes.c_int * 4)(*c)
+    prev_face[0] = c
     return c
-
-def dispatch_proc(img, prev_face, tries):
-    global proc
-    def tmp_fn():
-        find_faces(img, prev_face, tries)
-
-    proc = mp.Process(target=tmp_fn)
-    # proc = Process(target=sleep10)
-    proc.start()
 
 def find_forehead_with_eyes(x, y, w, h, ex, ey, eh, ew):
     fw = w*0.40
@@ -122,24 +110,24 @@ class ImageHandler(tornado.web.RequestHandler):
         self.prev_face = prev_face # face, forehead
         self.tries = tries
         self.forehead = forehead
+
     def get(self):
         self.render("index.html")
 
     def post(self):
         # if there's a face (or was in the last two seconds): send the coordinates of the image (x, y, h, w)
         # otherwise send '_
-        global proc
         global mt_prev_face
         global mt_serialized
         img = convert_to_cv2_img(self.request.body) # return previous face coordinates
-        if not proc.is_alive(): # proc finished
-            for i in range(2):
-                curr_mt = mt_prev_face[i]
-                curr_pf = self.prev_face[i]
-                for j in range(4):
-                    curr_mt[j] = int(curr_pf[j])
-            mt_serialized = serialize_face_pos(mt_prev_face[0])
-            dispatch_proc(img, self.prev_face, self.tries) # dispatch new process
+        find_faces(img, self.prev_face, self.tries)
+        
+        for i in range(2):
+            curr_mt = mt_prev_face[i]
+            curr_pf = self.prev_face[i]
+            for j in range(4):
+                curr_mt[j] = int(curr_pf[j])
+        mt_serialized = serialize_face_pos(mt_prev_face[0])
 
         if mt_prev_face[0][2] != 0: # if we have a prev face
             response_loc = mt_serialized
@@ -156,12 +144,9 @@ if __name__ == "__main__":
     mt_serialized = '_'
     #prev_face = (0, 0, 0, 0)
     mt_prev_face = [[0, 0, 0, 0], [0, 0, 0, 0]] #face, forehead
-    proc = mp.Process()
-    proc.start()
-    fin = ((ctypes.c_int*4) * 2)()
-    tries = mp.Array(ctypes.c_int, 1)
+    tries = [0]
     forehead = []
-    prev_face =  mp.Array(type(fin[0]), fin)
+    prev_face =  [[0,0,0,0],[0,0,0,0]]
     app = tornado.web.Application([
         (r"/", ImageHandler, dict(prev_face=prev_face, tries=tries, forehead=forehead))
     ])
