@@ -6,16 +6,6 @@ import tornado.web
 from tornado.options import define, options
 import multiprocessing as mp
 
-face_cascade = cv2.CascadeClassifier('/usr/local/Cellar/opencv/2.4.12/share/OpenCV/haarcascades/haarcascade_frontalface_default.xml')
-eye_cascade = cv2.CascadeClassifier('/usr/local/Cellar/opencv/2.4.12/share/OpenCV/haarcascades/haarcascade_eye.xml')
-MAX_NUM_TRIES = 20
-MAX_DIST_BETWEEN_FACES = 2000
-mt_serialized = '_'
-#prev_face = (0, 0, 0, 0)
-mt_prev_face = [[0, 0, 0, 0], [0, 0, 0, 0]] #face, forehead
-proc = mp.Process()
-proc.start()
-
 def convert_to_cv2_img(body): 
     file_bytes = np.asarray(bytearray(body), dtype=np.uint8)
     return cv2.imdecode(file_bytes, cv2.CV_LOAD_IMAGE_UNCHANGED)
@@ -158,6 +148,17 @@ class ImageHandler(tornado.web.RequestHandler):
         self.write(response_loc)
 
 if __name__ == "__main__":
+    haar_path = '/usr/local/Cellar/opencv/2.4.12/share/OpenCV/haarcascades/' if platform.system() == 'Darwin' else r"C:\Users\Misha\Downloads\opencv\build\share\OpenCV\haarcascades" + chr(92)
+    face_cascade = cv2.CascadeClassifier(haar_path + 'haarcascade_frontalface_default.xml')
+    eye_cascade = cv2.CascadeClassifier(haar_path + 'haarcascade_eye.xml')
+
+    MAX_NUM_TRIES = 20
+    MAX_DIST_BETWEEN_FACES = 2000
+    mt_serialized = '_'
+    #prev_face = (0, 0, 0, 0)
+    mt_prev_face = [[0, 0, 0, 0], [0, 0, 0, 0]] #face, forehead
+    proc = mp.Process()
+    proc.start()
     fin = ((ctypes.c_int*4) * 2)()
     tries = mp.Array(ctypes.c_int, 1)
     forehead = []
