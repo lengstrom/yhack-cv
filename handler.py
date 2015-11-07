@@ -98,7 +98,7 @@ def get_current_faces(candidates, prev_face, tries):
 def find_faces(img, prev_face, tries):
     #start = time.time()
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=3, minSize=(250,250))
+    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.25, minNeighbors=3, minSize=(220,220))
     get_current_faces(faces, prev_face, tries)
     # with prev_face.get_lock():
     #     face = prev_face[0]
