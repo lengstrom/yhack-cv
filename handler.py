@@ -5,12 +5,17 @@ import tornado.ioloop
 import numpy as np
 import tornado.web
 from tornado.options import define, options
+from multiprocessing import Process
 
 face_cascade = cv2.CascadeClassifier('/usr/local/Cellar/opencv/2.4.12/share/OpenCV/haarcascades/haarcascade_frontalface_default.xml')
 MAX_NUM_TRIES = 4
+serialized = '_'
 MAX_DIST_BETWEEN_FACES = 2000
 tries = 0
+mt_serialized = '_'
 prev_face = (0, 0, 0, 0)
+mt_prev_face = (0, 0, 0, 0)
+proc = Process()
 
 def convert_to_cv2_img(body):
     file_bytes = np.asarray(bytearray(body), dtype=np.uint8)
@@ -42,6 +47,12 @@ def ret_candidate(c):
     prev_face = c
     return c
 
+def dispatch_proc(img):
+    print "dispatched proc."
+    global proc
+    proc = Process(target=find_faces, args=(img,))
+    proc.start()
+
 def get_current_faces(candidates):
     is_prev = prev_face[2] != 0
     num_candidates = len(candidates)
@@ -68,13 +79,14 @@ def get_current_faces(candidates):
             return ret_candidate(i)
 
 def find_faces(img):
+    global serialized
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=2, minSize=(250,250))
     curr_face_pos = get_current_faces(faces)
-    print curr_face_pos
     serialized = serialize_face_pos(curr_face_pos)
+    print "    proc finished"
+    # don't return anything bc this is in another thread
     # eventually implement forehead finding method here
-    return serialized # each face is (x, y, w, h)
 
 class ImageHandler(tornado.web.RequestHandler):
     def get(self):
@@ -82,9 +94,25 @@ class ImageHandler(tornado.web.RequestHandler):
 
     def post(self):
         # if there's a face (or was in the last two seconds): send the coordinates of the image (x, y, h, w)
-        # otherwise send '_ 
-        img = convert_to_cv2_img(self.request.files['i'][0]['body'])
-        response_loc = find_faces(img)
+        # otherwise send '_
+        print "    posted..."
+        global proc
+        global mt_prev_face
+        global serialized
+        global mt_serialized
+        global prev_face
+        img = convert_to_cv2_img(self.request.files['i'][0]['body']) # return previous face coordinates
+        if not proc.is_alive(): # proc finished
+            mt_prev_face = prev_face[:] # reassign prev_face area
+            mt_serialized = serialized[:]
+            dispatch_proc(img) # dispatch new process
+
+        if mt_prev_face[2] != 0: # if we have a prev face
+            response_loc = mt_serialized
+        else: # if we don't have a previous face
+            response_loc = serialize_face_pos(()) # return that we don't have a face
+
+        print mt_serialized
         self.write(response_loc)
 
 if __name__ == "__main__":
