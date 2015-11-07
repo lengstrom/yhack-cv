@@ -1,10 +1,9 @@
-import pdb, time, cv2, ctypes, os, platform
+import pdb, time, cv2, os, platform
 import tornado.httpserver
 import tornado.ioloop
 import numpy as np
 import tornado.web
 from tornado.options import define, options
-import multiprocessing as mp
 
 def convert_to_cv2_img(body): 
     file_bytes = np.asarray(bytearray(body), dtype=np.uint8)
@@ -16,8 +15,7 @@ def dist_between_faces(f1, f2):
 def ret_no_face(prev_face, tries):
     tries[0] += 1
     if tries[0] > MAX_NUM_TRIES:
-        with prev_face.get_lock():
-            prev_face[0] = (ctypes.c_int*4)()
+        prev_face[0] = [0,0,0,0]
         return ()
     if prev_face[0][3] == 0:
         return ()
@@ -31,15 +29,8 @@ def serialize_face_pos(tup):
 def ret_candidate(c, prev_face, tries):
     tries[0] = 0
     arr1 = prev_face[0]
-    with prev_face.get_lock():
-        prev_face[0] = (ctypes.c_int * 4)(*c)
+    prev_face[0] = c
     return c
-
-def dispatch_proc(img, prev_face, tries):
-    global proc
-    proc = mp.Process(target=find_faces, args=(img,prev_face,tries))
-    # proc = Process(target=sleep10)
-    proc.start()
 
 def find_forehead_with_eyes(x, y, w, h, ex, ey, eh, ew):
     fw = w*0.40
@@ -58,12 +49,12 @@ def find_forehead_without_eyes(x, y, w, h):
     fy = y + h * 0.11741682974559686
     return map(lambda x: int(x), (fx, fy, fw, fh))
 
-def get_forehead(mt_face):
-    if mt_face[1][2] == 0:
-        a = mt_face[0]
+def get_forehead(prev_face):
+    if prev_face[1][2] == 0:
+        a = prev_face[0]
         return find_forehead_without_eyes(*a)
     else:
-        a = mt_face[0] + mt_face[1]
+        a = prev_face[0] + prev_face[1]
         return find_forehead_with_eyes(*a)
 
 def get_current_faces(candidates, prev_face, tries):
@@ -89,30 +80,30 @@ def find_faces(img, prev_face, tries):
     #start = time.time()
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     faces = face_cascade.detectMultiScale(gray, scaleFactor=1.25, minNeighbors=3, minSize=(220,220))
-    curr_face_pos = get_current_faces(faces, prev_face, tries)
-    with prev_face.get_lock():
-        face = prev_face[0]
-        w = face[2]
-        if w > 0:
-            x = face[0]
-            y = face[1]
-            h = face[3]
-            eye_gray = gray[y:y+h, x:x+w]
-            eyes = eye_cascade.detectMultiScale(eye_gray)
-            n = 0
-            avg_eye = [0, 0, 0, 0]
-            for (ex,ey,ew,eh) in eyes:
-                avg_eye[0] += ex
-                avg_eye[1] += ey
-                avg_eye[2] += ew
-                avg_eye[3] += eh
-                n += 1
-            if n > 0:
-                prev_face[1] = (ctypes.c_int * 4)(*(map(lambda x: x / n, avg_eye)))
-            else:
-                prev_face[1] = (ctypes.c_int * 4)()
-        else:
-            prev_face[1] = (ctypes.c_int * 4)()
+    get_current_faces(faces, prev_face, tries)
+    # with prev_face.get_lock():
+    #     face = prev_face[0]
+    #     w = face[2]
+    #     if w > 0:
+    #         x = face[0]
+    #         y = face[1]
+    #         h = face[3]
+    #         eye_gray = gray[y:y+h, x:x+w]
+    #         eyes = eye_cascade.detectMultiScale(eye_gray)
+    #         n = 0
+    #         avg_eye = [0, 0, 0, 0]
+    #         for (ex,ey,ew,eh) in eyes:
+    #             avg_eye[0] += ex
+    #             avg_eye[1] += ey
+    #             avg_eye[2] += ew
+    #             avg_eye[3] += eh
+    #             n += 1
+    #         if n > 0:
+    #             prev_face[1] = (ctypes.c_int * 4)(*(map(lambda x: x / n, avg_eye)))
+    #         else:
+    #             prev_face[1] = (ctypes.c_int * 4)()
+    #     else:
+    #         prev_face[1] = (ctypes.c_int * 4)()
 
 class ImageHandler(tornado.web.RequestHandler):
     def initialize(self, prev_face, tries, forehead):
@@ -126,44 +117,28 @@ class ImageHandler(tornado.web.RequestHandler):
     def post(self):
         # if there's a face (or was in the last two seconds): send the coordinates of the image (x, y, h, w)
         # otherwise send '_
-        global proc
-        global mt_prev_face
-        global mt_serialized
         img = convert_to_cv2_img(self.request.body) # return previous face coordinates
-        if not proc.is_alive(): # proc finished
-            for i in range(2):
-                curr_mt = mt_prev_face[i]
-                curr_pf = self.prev_face[i]
-                for j in range(4):
-                    curr_mt[j] = int(curr_pf[j])
-            self.forehead = 
-            mt_serialized = serialize_face_pos(mt_prev_face[0]) + ',' + serialize_face_pos(mt_prev_face[1])
-            print mt_serialized
-            dispatch_proc(img, self.prev_face, self.tries) # dispatch new process
+        find_faces(img, self.prev_face, self.tries)
 
-        if mt_prev_face[0][2] != 0: # if we have a prev face
-            response_loc = mt_serialized
+        if prev_face[0][2] != 0: # if we have a prev face
+            serialized = serialize_face_pos(prev_face[0])
+            response_loc = serialized
         else: # if we don't have a previous face
-            response_loc = '_,_' # return that we don't have a face
-
+            response_loc = '_' # return that we don't have a face
+            
         self.write(response_loc)
 
 if __name__ == "__main__":
     haar_path = '/usr/local/Cellar/opencv/2.4.12/share/OpenCV/haarcascades/' if platform.system() == 'Darwin' else r"C:\Users\Misha\Downloads\opencv\build\share\OpenCV\haarcascades" + chr(92)
     face_cascade = cv2.CascadeClassifier(haar_path + 'haarcascade_frontalface_default.xml')
-    eye_cascade = cv2.CascadeClassifier(haar_path + 'haarcascade_eye.xml')
-
-    MAX_NUM_TRIES = 20
+    MAX_NUM_TRIES = 15
     MAX_DIST_BETWEEN_FACES = 2000
     mt_serialized = '_'
     #prev_face = (0, 0, 0, 0)
     mt_prev_face = [[0, 0, 0, 0], [0, 0, 0, 0]] #face, forehead
-    proc = mp.Process()
-    proc.start()
-    fin = ((ctypes.c_int*4) * 2)()
-    tries = mp.Array(ctypes.c_int, 1)
+    tries = [0]
     forehead = []
-    prev_face =  mp.Array(type(fin[0]), fin)
+    prev_face =  [[0,0,0,0],[0,0,0,0]]
     app = tornado.web.Application([
         (r"/", ImageHandler, dict(prev_face=prev_face, tries=tries, forehead=forehead))
     ])
