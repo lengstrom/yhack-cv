@@ -7,8 +7,8 @@ from tornado.options import define, options
 import multiprocessing as mp
 
 face_cascade = cv2.CascadeClassifier('/usr/local/Cellar/opencv/2.4.12/share/OpenCV/haarcascades/haarcascade_frontalface_default.xml')
-#eye_cascade = cv2.CascadeClassifier('/usr/local/Cellar/opencv/2.4.12/share/OpenCV/haarcascades/haarcascade_eye.xml')
-MAX_NUM_TRIES = 15
+eye_cascade = cv2.CascadeClassifier('/usr/local/Cellar/opencv/2.4.12/share/OpenCV/haarcascades/haarcascade_eye.xml')
+MAX_NUM_TRIES = 20
 MAX_DIST_BETWEEN_FACES = 2000
 mt_serialized = '_'
 #prev_face = (0, 0, 0, 0)
@@ -99,30 +99,30 @@ def find_faces(img, prev_face, tries):
     #start = time.time()
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     faces = face_cascade.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=3, minSize=(250,250))
-    get_current_faces(faces, prev_face, tries)
-    # with prev_face.get_lock():
-    #     face = prev_face[0]
-    #     w = face[2]
-    #     if w > 0:
-    #         x = face[0]
-    #         y = face[1]
-    #         h = face[3]
-    #         eye_gray = gray[y:y+h, x:x+w]
-    #         eyes = eye_cascade.detectMultiScale(eye_gray)
-    #         n = 0
-    #         avg_eye = [0, 0, 0, 0]
-    #         for (ex,ey,ew,eh) in eyes:
-    #             avg_eye[0] += ex
-    #             avg_eye[1] += ey
-    #             avg_eye[2] += ew
-    #             avg_eye[3] += eh
-    #             n += 1
-    #         if n > 0:
-    #             prev_face[1] = (ctypes.c_int * 4)(*(map(lambda x: x / n, avg_eye)))
-    #         else:
-    #             prev_face[1] = (ctypes.c_int * 4)()
-    #     else:
-    #         prev_face[1] = (ctypes.c_int * 4)()
+    curr_face_pos = get_current_faces(faces, prev_face, tries)
+    with prev_face.get_lock():
+        face = prev_face[0]
+        w = face[2]
+        if w > 0:
+            x = face[0]
+            y = face[1]
+            h = face[3]
+            eye_gray = gray[y:y+h, x:x+w]
+            eyes = eye_cascade.detectMultiScale(eye_gray)
+            n = 0
+            avg_eye = [0, 0, 0, 0]
+            for (ex,ey,ew,eh) in eyes:
+                avg_eye[0] += ex
+                avg_eye[1] += ey
+                avg_eye[2] += ew
+                avg_eye[3] += eh
+                n += 1
+            if n > 0:
+                prev_face[1] = (ctypes.c_int * 4)(*(map(lambda x: x / n, avg_eye)))
+            else:
+                prev_face[1] = (ctypes.c_int * 4)()
+        else:
+            prev_face[1] = (ctypes.c_int * 4)()
 
 class ImageHandler(tornado.web.RequestHandler):
     def initialize(self, prev_face, tries, forehead):
@@ -145,15 +145,15 @@ class ImageHandler(tornado.web.RequestHandler):
                 curr_pf = self.prev_face[i]
                 for j in range(4):
                     curr_mt[j] = int(curr_pf[j])
-
-            mt_serialized = serialize_face_pos(mt_prev_face[0])
+            self.forehead = 
+            mt_serialized = serialize_face_pos(mt_prev_face[0]) + ',' + serialize_face_pos(mt_prev_face[1])
             print mt_serialized
             dispatch_proc(img, self.prev_face, self.tries) # dispatch new process
 
         if mt_prev_face[0][2] != 0: # if we have a prev face
             response_loc = mt_serialized
         else: # if we don't have a previous face
-            response_loc = '_' # return that we don't have a face
+            response_loc = '_,_' # return that we don't have a face
 
         self.write(response_loc)
 
