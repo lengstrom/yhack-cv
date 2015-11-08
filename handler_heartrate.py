@@ -126,13 +126,13 @@ class ImageHandler(tornado.web.RequestHandler):
                 bb = self.blackboxes[0]
                 bpm, alpha, cntdwn = bb.loop(img, prev_face[1])
                 if bpm != None:
-                    response_loc += ',' + ','.join(map(lambda x: str(x), (bpm, alpha, cntdwn)))
+                    response_loc += ',' + ','.join(map(lambda x: str(x), (bpm, alpha, cntdwn))) + ',' + ','.join(map(lambda x: str(x), prev_face[1]))
                 else:
-                    response_loc += ',-1,-1,-1'
+                    response_loc += ',-1,-1,-1,-1,-1,-1,-1'
         else: # if we don't have a previous face
             if len(self.blackboxes) == 1:
                 del self.blackboxes[0]
-            response_loc = '-1,-1,-1,-1,-1,-1,-1' # return that we don't have a face
+            response_loc = '-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1' # return that we don't have a face
 
         self.write(response_loc)
         # possible responses:

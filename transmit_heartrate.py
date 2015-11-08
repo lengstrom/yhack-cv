@@ -41,16 +41,17 @@ while True:
     _, enc = cv2.imencode('.png', frame)
     s = enc.tostring()
     r__ = requests.post("http://127.0.0.1:5000/", data=s, headers=headers)#files = {'i':s})
-    x, y, w, h, bpm, alpha, sec = r__.text.split(',')
+    x, y, w, h, bpm, alpha, sec, fx, fy, fw, fh = r__.text.split(',')
     if x != '-1':
         if sec == '-1':
             x, y, w, h = map(lambda x: int(x), (x, y, w, h))
             cv2.rectangle(frame,(x,y),(x+w,y+h),(255,0,0),2)
         else:
-            x, y, w, h, sec = map(lambda x: int(x), (x, y, w, h, sec))
+            x, y, w, h, sec, fx, fy, fw, fh = map(lambda x: int(x), (x, y, w, h, sec, fx, fy, fw, fh))
             alpha = float(alpha)
             bpm = float(bpm)
             cv2.rectangle(frame,(x,y),(x+w,y+h),(255,0,0),2)
+            cv2.rectangle(frame,(fx,fy),(fx+fw,fy+fh),(0,255,0),2)
             print bpm, alpha, sec
 
     start = time.time()
