@@ -3,6 +3,7 @@ import tornado.httpserver
 import tornado.ioloop
 import numpy as np
 import tornado.web
+import blackbox
 from tornado.options import define, options
 
 def convert_to_cv2_img(body): 
@@ -33,7 +34,7 @@ def ret_candidate(c, prev_face, tries):
     return c
 
 def find_forehead_with_eyes(x, y, w, h, ex, ey, eh, ew):
-    return find_forehead_without_eyes(x, y, w, h)
+    #return find_forehead_without_eyes(x, y, w, h)
     fw = w*0.40
     fx = x + w*(1 - 0.40)/2.
     eye_top = ey
@@ -47,9 +48,8 @@ def find_forehead_with_eyes(x, y, w, h, ex, ey, eh, ew):
 def find_forehead_without_eyes(x, y, w, h):
     fw = 0.39215686274509803 * w
     fx = x + (w - fw)/2
-    fh = 0.08262230919765166 * h
+    fh = 0.07262230919765166 * h
     fy = y + h * 0.081741682974559686
-    print "w/o eyes"
     return map(lambda x: int(x), (fx, fy, fw, fh))
 
 def get_current_faces(candidates, prev_face, tries):
@@ -74,7 +74,7 @@ def get_current_faces(candidates, prev_face, tries):
 def find_faces(img, prev_face, tries):
     #start = time.time()
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.25, minNeighbors=3, minSize=(220,220))
+    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.25, minNeighbors=3, minSize=(160,160))
     get_current_faces(faces, prev_face, tries)
     face = prev_face[0]
     w = face[2]
@@ -104,11 +104,11 @@ def find_faces(img, prev_face, tries):
         prev_face[1] = [0,0,0,0]
 
 class ImageHandler(tornado.web.RequestHandler):
-    def initialize(self, prev_face, tries, forehead):
+    def initialize(self, prev_face, tries, forehead, blackboxes):
         self.prev_face = prev_face # face, forehead
         self.tries = tries
         self.forehead = forehead
-
+        self.blackboxes = blackboxes
     def get(self):
         self.render("index.html")
 
@@ -120,12 +120,18 @@ class ImageHandler(tornado.web.RequestHandler):
 
         if prev_face[0][2] != 0: # if we have a prev face
             response_loc = serialize_face_pos(prev_face[0]) + ',' + serialize_face_pos(prev_face[1])
+            if len(self.blackboxes) == 0:
+                self.blackboxes.append(blackbox.BlackBox())
+            bb = self.blackboxes[0]
+            bpm, alpha, txt = bb.loop(img, prev_face[1])
+            print bpm, alpha, txt
         else: # if we don't have a previous face
             response_loc = '_,_' # return that we don't have a face
             
         self.write(response_loc)
 
 if __name__ == "__main__":
+    blackboxes = []
     haar_path = '/usr/local/Cellar/opencv/2.4.12/share/OpenCV/haarcascades/' if platform.system() == 'Darwin' else r"C:\Users\Misha\Downloads\opencv\build\share\OpenCV\haarcascades" + chr(92)
     face_cascade = cv2.CascadeClassifier(haar_path + 'haarcascade_frontalface_default.xml')
     eye_cascade = cv2.CascadeClassifier(haar_path + 'haarcascade_eye.xml')
@@ -138,7 +144,7 @@ if __name__ == "__main__":
     forehead = []
     prev_face =  [[0,0,0,0],[0,0,0,0]]
     app = tornado.web.Application([
-        (r"/", ImageHandler, dict(prev_face=prev_face, tries=tries, forehead=forehead))
+        (r"/", ImageHandler, dict(prev_face=prev_face, tries=tries, forehead=forehead, blackboxes=blackboxes))
     ])
     server = tornado.httpserver.HTTPServer(app)
     server.listen(5000)
