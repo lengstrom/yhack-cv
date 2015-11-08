@@ -1,10 +1,8 @@
-import sys, os
-sys.path.append('../webcam-pulse-detector/lib/')
-import cpy_processors_noopenmdao 
+import sys, os, processor 
 
 class BlackBox:
     def __init__(self):
-        self.processor = cpy_processors_noopenmdao.findFaceGetPulse(bpm_limits=[45, 130], data_spike_limit=250.,face_detector_smoothness=10.)
+        self.processor = processor.findFaceGetPulse(bpm_limits=[45, 130], data_spike_limit=250.,face_detector_smoothness=10.)
         self.processor.find_faces = False
 
     def loop(self, frame, forehead):
