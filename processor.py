@@ -33,6 +33,7 @@ class findFaceGetPulse(object):
         self.ttimes = []
         self.samples = []
         self.freqs = []
+        self.cntdwn = -1
         self.fft = []
         self.slices = [[0]]
         self.t0 = time.time()
@@ -129,13 +130,15 @@ class findFaceGetPulse(object):
 
                 gap = (self.buffer_size - L) / self.fps
                 if gap:
-                    cntdwn = int(gap)
+                    self.cntdwn = int(gap)
                 else:
-                    cntdwn = 0
+                    self.cntdwn = 0
             except:
                 print "err!!"
                 pass
-        if self.alpha != None:
-            return (self.bpm, self.alpha, cntdwn)
+        if self.alpha != None and self.cntdwn != -1:
+            b = int(self.cntdwn)
+            self.cntdwn = -1
+            return (self.bpm, self.alpha, b)
         else:
             return (None, None, None)
