@@ -1,10 +1,10 @@
+# this is modified code from https://github.com/thearn/webcam-pulse-detector
 import numpy as np
 import time
 import cv2
 import pdb
 import os
 import sys
-
 
 def resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
