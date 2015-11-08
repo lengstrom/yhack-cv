@@ -41,12 +41,12 @@ while True:
     _, enc = cv2.imencode('.png', frame)
     s = enc.tostring()
     r__ = requests.post("http://127.0.0.1:5000/", data=s, headers=headers)#files = {'i':s})
-    if r__.text != '_,_':
-        if r__.text[-1] == '_':
-            x, y, w, h = map(lambda x: int(x), r__.text.split(',')[:-1])
+    x, y, w, h, bpm, alpha, sec = r__.text.split(',')
+    if x != '-1':
+        if sec == '-1':
+            x, y, w, h = map(lambda x: int(x), (x, y, w, h))
             cv2.rectangle(frame,(x,y),(x+w,y+h),(255,0,0),2)
         else:
-            x, y, w, h, bpm, alpha, sec = r__.text.split(',')
             x, y, w, h, sec = map(lambda x: int(x), (x, y, w, h, sec))
             alpha = float(alpha)
             bpm = float(bpm)
