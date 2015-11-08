@@ -49,14 +49,6 @@ def find_forehead_without_eyes(x, y, w, h):
     fy = y + h * 0.11741682974559686
     return map(lambda x: int(x), (fx, fy, fw, fh))
 
-def get_forehead(prev_face):
-    if prev_face[1][2] == 0:
-        a = prev_face[0]
-        return find_forehead_without_eyes(*a)
-    else:
-        a = prev_face[0] + prev_face[1]
-        return find_forehead_with_eyes(*a)
-
 def get_current_faces(candidates, prev_face, tries):
     is_prev = prev_face[0][2] != 0
     num_candidates = len(candidates)
@@ -81,29 +73,32 @@ def find_faces(img, prev_face, tries):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     faces = face_cascade.detectMultiScale(gray, scaleFactor=1.25, minNeighbors=3, minSize=(220,220))
     get_current_faces(faces, prev_face, tries)
-    # with prev_face.get_lock():
-    #     face = prev_face[0]
-    #     w = face[2]
-    #     if w > 0:
-    #         x = face[0]
-    #         y = face[1]
-    #         h = face[3]
-    #         eye_gray = gray[y:y+h, x:x+w]
-    #         eyes = eye_cascade.detectMultiScale(eye_gray)
-    #         n = 0
-    #         avg_eye = [0, 0, 0, 0]
-    #         for (ex,ey,ew,eh) in eyes:
-    #             avg_eye[0] += ex
-    #             avg_eye[1] += ey
-    #             avg_eye[2] += ew
-    #             avg_eye[3] += eh
-    #             n += 1
-    #         if n > 0:
-    #             prev_face[1] = (ctypes.c_int * 4)(*(map(lambda x: x / n, avg_eye)))
-    #         else:
-    #             prev_face[1] = (ctypes.c_int * 4)()
-    #     else:
-    #         prev_face[1] = (ctypes.c_int * 4)()
+    face = prev_face[0]
+    w = face[2]
+    if w > 0:
+        x = face[0]
+        y = face[1]
+        h = face[3]
+        eye_gray = gray[y:y+h, x:x+w]
+        eyes = eye_cascade.detectMultiScale(eye_gray)
+        n = 0
+        avg_eye = [0, 0, 0, 0]
+        for (ex,ey,ew,eh) in eyes:
+            avg_eye[0] += ex
+            avg_eye[1] += ey
+            avg_eye[2] += ew
+            avg_eye[3] += eh
+            n += 1
+        if n > 0:
+            avg_eye = map(lambda x: x / n, avg_eye)
+            avg_eye[0] += x
+            avg_eye[1] += y
+            forehead = find_forehead_with_eyes(x, y, w, h, avg_eye[0], avg_eye[1], avg_eye[2], avg_eye[3])
+        else:
+            forehead = find_forehead_without_eyes(x, y, w, h)
+        prev_face[1] = forehead
+    else:
+        prev_face[1] = [0,0,0,0]
 
 class ImageHandler(tornado.web.RequestHandler):
     def initialize(self, prev_face, tries, forehead):
@@ -121,16 +116,16 @@ class ImageHandler(tornado.web.RequestHandler):
         find_faces(img, self.prev_face, self.tries)
 
         if prev_face[0][2] != 0: # if we have a prev face
-            serialized = serialize_face_pos(prev_face[0])
-            response_loc = serialized
+            response_loc = serialize_face_pos(prev_face[0]) + ',' + serialize_face_pos(prev_face[1])
         else: # if we don't have a previous face
-            response_loc = '_' # return that we don't have a face
+            response_loc = '_,_' # return that we don't have a face
             
         self.write(response_loc)
 
 if __name__ == "__main__":
     haar_path = '/usr/local/Cellar/opencv/2.4.12/share/OpenCV/haarcascades/' if platform.system() == 'Darwin' else r"C:\Users\Misha\Downloads\opencv\build\share\OpenCV\haarcascades" + chr(92)
     face_cascade = cv2.CascadeClassifier(haar_path + 'haarcascade_frontalface_default.xml')
+    eye_cascade = cv2.CascadeClassifier(haar_path + 'haarcascade_eye.xml')
     MAX_NUM_TRIES = 15
     MAX_DIST_BETWEEN_FACES = 2000
     mt_serialized = '_'

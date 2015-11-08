@@ -42,24 +42,15 @@ while True:
     s = enc.tostring()
     r__ = requests.post("http://127.0.0.1:5000/", data=s, headers=headers)#files = {'i':s})
     if r__.text != '_,_':
-        x, y, w, h, ex, ey, ew, eh = map(lambda x: int(x), r__.text.split(','))
-        ex += x
-        ey += y
-        cv2.rectangle(frame,(0,10),(10, 20),(0,255,0),2)
+        x, y, w, h, fx, fy, fw, fh = map(lambda x: int(x), r__.text.split(','))
         cv2.rectangle(frame,(x,y),(x+w,y+h),(255,0,0),2)
-        if ew != 0:
-            cv2.rectangle(frame,(ex,ey),(ex+ew,ey+eh),(255,0,0),2)
-            fx, fy, fw, fh = find_forehead_with_eyes(x, y, w, h, ex, ey, ew, eh)
-            cv2.rectangle(frame,(fx,fy),(fx+fw,fy+fh),(255,0,0),2)
-        else:
-            fx, fy, fw, fh = find_forehead_without_eyes(x, y, w, h)
-            cv2.rectangle(frame,(fx,fy),(fx+fw,fy+fh),(255,0,0),2)
-        
+        cv2.rectangle(frame,(fx,fy),(fx+fw,fy+fh),(0,255,0),2)
+
     start = time.time()
     cv2.imshow('frame', frame) 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
     avg += time.time() - start
-    #print avg/n
+
 cap.release()
 cv2.destroyAllWindows()
