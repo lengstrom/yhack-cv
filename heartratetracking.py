@@ -33,20 +33,23 @@ def ret_candidate(c, prev_face, tries):
     return c
 
 def find_forehead_with_eyes(x, y, w, h, ex, ey, eh, ew):
+    return find_forehead_without_eyes(x, y, w, h)
     fw = w*0.40
     fx = x + w*(1 - 0.40)/2.
     eye_top = ey
     head_top = y
     dy = ey - y
     fh = 0.40635036496350365 * dy
-    fy = y + (dy - fh)/2.4
+    fy = y + (dy - fh)/3
+    print "w eyes"
     return map(lambda x: int(x), (fx, fy, fw, fh))
 
 def find_forehead_without_eyes(x, y, w, h):
     fw = 0.39215686274509803 * w
     fx = x + (w - fw)/2
-    fh = 0.06262230919765166 * h
-    fy = y + h * 0.11741682974559686
+    fh = 0.08262230919765166 * h
+    fy = y + h * 0.081741682974559686
+    print "w/o eyes"
     return map(lambda x: int(x), (fx, fy, fw, fh))
 
 def get_current_faces(candidates, prev_face, tries):
