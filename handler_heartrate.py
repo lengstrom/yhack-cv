@@ -120,12 +120,15 @@ class ImageHandler(tornado.web.RequestHandler):
 
         if prev_face[0][2] != 0: # if we have a prev face
             response_loc = serialize_face_pos(prev_face[0]) + ',' + serialize_face_pos(prev_face[1])
-            if len(self.blackboxes) == 0:
-                self.blackboxes.append(blackbox.BlackBox())
-            bb = self.blackboxes[0]
-            bpm, alpha, txt = bb.loop(img, prev_face[1])
-            print bpm, alpha, txt
+            if prev_face[1][2] != 0:
+                if len(self.blackboxes) == 0:
+                    self.blackboxes.append(blackbox.BlackBox())
+                bb = self.blackboxes[0]
+                bpm, alpha, txt = bb.loop(img, prev_face[1])
+                print bpm, alpha, txt
         else: # if we don't have a previous face
+            if len(self.blackboxes) == 1:
+                del self.blackboxes[0]
             response_loc = '_,_' # return that we don't have a face
             
         self.write(response_loc)
