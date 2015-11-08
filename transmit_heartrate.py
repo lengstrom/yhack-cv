@@ -42,9 +42,16 @@ while True:
     s = enc.tostring()
     r__ = requests.post("http://127.0.0.1:5000/", data=s, headers=headers)#files = {'i':s})
     if r__.text != '_,_':
-        x, y, w, h, fx, fy, fw, fh = map(lambda x: int(x), r__.text.split(','))
-        cv2.rectangle(frame,(x,y),(x+w,y+h),(255,0,0),2)
-        cv2.rectangle(frame,(fx,fy),(fx+fw,fy+fh),(0,255,0),2)
+        if r__.text[-1] == '_':
+            x, y, w, h = map(lambda x: int(x), r__.text.split(',')[:-1])
+            cv2.rectangle(frame,(x,y),(x+w,y+h),(255,0,0),2)
+        else:
+            x, y, w, h, bpm, alpha, sec = r__.text.split(',')
+            x, y, w, h, sec = map(lambda x: int(x), (x, y, w, h, sec))
+            alpha = float(alpha)
+            bpm = float(bpm)
+            cv2.rectangle(frame,(x,y),(x+w,y+h),(255,0,0),2)
+            print bpm, alpha, sec
 
     start = time.time()
     cv2.imshow('frame', frame) 

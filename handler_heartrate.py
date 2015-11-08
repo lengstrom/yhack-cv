@@ -42,7 +42,6 @@ def find_forehead_with_eyes(x, y, w, h, ex, ey, eh, ew):
     dy = ey - y
     fh = 0.40635036496350365 * dy
     fy = y + (dy - fh)/3
-    print "w eyes"
     return map(lambda x: int(x), (fx, fy, fw, fh))
 
 def find_forehead_without_eyes(x, y, w, h):
@@ -115,23 +114,32 @@ class ImageHandler(tornado.web.RequestHandler):
     def post(self):
         # if there's a face (or was in the last two seconds): send the coordinates of the image (x, y, h, w)
         # otherwise send '_
+        start = time.time()
         img = convert_to_cv2_img(self.request.body) # return previous face coordinates
         find_faces(img, self.prev_face, self.tries)
 
         if prev_face[0][2] != 0: # if we have a prev face
-            response_loc = serialize_face_pos(prev_face[0]) + ',' + serialize_face_pos(prev_face[1])
+            response_loc = serialize_face_pos(prev_face[0])
             if prev_face[1][2] != 0:
                 if len(self.blackboxes) == 0:
                     self.blackboxes.append(blackbox.BlackBox())
                 bb = self.blackboxes[0]
-                bpm, alpha, txt = bb.loop(img, prev_face[1])
-                print bpm, alpha, txt
+                bpm, alpha, cntdwn = bb.loop(img, prev_face[1])
+                if bpm != None:
+                    response_loc += ',' + ','.join(map(lambda x: str(x), (bpm, alpha, cntdwn)))
+                else:
+                    response_loc += ',_'
         else: # if we don't have a previous face
             if len(self.blackboxes) == 1:
                 del self.blackboxes[0]
             response_loc = '_,_' # return that we don't have a face
-            
+
         self.write(response_loc)
+        # possible responses:
+        # x, y, w, h, bpm, alpha, seconds in countdown ### Full response, everythings there
+        # x, y, w, h, _  ### No bpm info but we do have facial coordinates
+        # _,_ ### no info at all
+        # all are ints other than _ (which is a placeholder) and bpm and alpha (which are floats)
 
 if __name__ == "__main__":
     blackboxes = []
